@@ -26,6 +26,13 @@ class PaymentRequest(BaseModel):
     amount: float
     currency: str
 
+    def validate_amount(self) :
+        if self.amount <= 0 :
+            raise HTTPException(
+                status_code = 422,
+                detail = "Amount must be greater than zero."
+            )
+
 def hash_body(payment: PaymentRequest):
     # Converting the payment body into a unique fingerprint
     body_str = json.dumps(payment.dict(), sort_keys=True)
@@ -41,6 +48,16 @@ def process_payment(
     idempotency_key: str = Header(...),
     response: Response = None
 ):
+    # Validate the payment amount
+    payment.validate_amount()
+
+    # Validate idempotency key
+    if not idempotency_key or not idempotency_key.strip() :
+        raise HTTPException(
+            status_code= 400,
+            detail = "Idempotency key is required and cannot be empty."
+        )
+
     body_hash = hash_body(payment)
 
     with lock:
